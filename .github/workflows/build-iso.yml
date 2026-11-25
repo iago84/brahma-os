@@ -1,0 +1,98 @@
+name: build-iso-pc
+
+# Construye la ISO de BRAHMA OS (perfil PC x86_64) en un runner GitHub limpio,
+# donde la red es rápida. Sustituye al build local (WSL), bloqueado por ancho de banda.
+#
+# Disparadores:
+#   - workflow_dispatch: build manual desde la pestaña Actions.
+#   - push de un tag v*: build + publicación automática en un Release.
+#
+# La receta vive en el repo (brahma-os/iso/): aquí solo se orquesta.
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Perfil a construir"
+        type: choice
+        options: [pc]
+        default: pc
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write   # necesario para adjuntar artefactos al Release
+
+concurrency:
+  group: build-iso-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-pc-iso:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar toolchain (live-build + debootstrap)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends live-build debootstrap xz-utils
+          lb --version || true
+
+      - name: Timeouts de apt (red del runner)
+        run: |
+          echo 'Acquire::http::Timeout "30"; Acquire::https::Timeout "30"; Acquire::Retries "10";' \
+            | sudo tee /etc/apt/apt.conf.d/99-brahma-timeout >/dev/null
+
+      - name: Construir la ISO (build real)
+        env:
+          BRAHMA_BUILD_AUTHORIZED: "1"
+        run: |
+          sudo -E bash brahma-os/iso/build.sh --profile "${{ github.event.inputs.profile || 'pc' }}" --apply
+
+      - name: Normalizar permisos del árbol de build
+        run: sudo chown -R "$(id -u):$(id -g)" brahma-os/iso/live-build
+
+      - name: Empaquetar artefacto (comprimir + trocear <2 GiB)
+        id: pack
+        run: |
+          set -euo pipefail
+          ISO_DIR="brahma-os/iso/live-build"
+          ISO="$(ls "$ISO_DIR"/*.hybrid.iso "$ISO_DIR"/*.iso 2>/dev/null | head -n1)"
+          test -n "$ISO" || { echo "No se encontró ISO en $ISO_DIR" >&2; ls -lh "$ISO_DIR"; exit 1; }
+          echo "ISO: $ISO"
+          ls -lh "$ISO"
+          echo "iso_name=$(basename "$ISO")" >> "$GITHUB_OUTPUT"
+
+          xz -T0 -6 -k "$ISO"
+          XZ="$ISO.xz"
+          SIZE="$(stat -c%s "$XZ")"
+          echo "Tamaño comprimido: $SIZE bytes"
+
+          mkdir -p dist
+          if [ "$SIZE" -gt 2000000000 ]; then
+            # GitHub limita cada asset a 2 GiB: trocear en partes de 1.900 MiB
+            split -b 1900M -d -a 2 "$XZ" "dist/$(basename "$XZ").part-"
+            rm -f "$XZ"
+          else
+            mv "$XZ" dist/
+          fi
+          sha256sum dist/* > dist/SHA256SUMS.txt
+          ls -lh dist/
+
+      - name: Subir artifact (resultado del workflow)
+        uses: actions/upload-artifact@v4
+        with:
+          name: brahma-os-pc-iso
+          path: dist/*
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Publicar en Release (solo en tags v*)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

@@ -1,0 +1,13 @@
+# brahma-os/base/packages/services.list — servicios BRAHMA (propuesta, VALIDAR)
+# Unidades systemd de BRAHMA (user/system). Ejemplo: infrastructure/systemd/brahma-core.service.example
+# NO activar por defecto sin autorización explícita (Fase 9).
+
+# --- CORE (API) ---
+# brahma-core            # uvicorn core.brahma_core.main:app  (127.0.0.1:8000)
+
+# --- AI runtime (opcional, on-demand) ---
+# ollama                 # BRAHMA_AI_ENABLED=false por defecto; 1 modelo, CPU-first
+
+# --- Datos (según despliegue) ---
+# postgresql             # fuente de verdad de MEMORY/KNOWLEDGE/REKHA
+# (Qdrant/Neo4j diferidos; ver ROADMAP §4)

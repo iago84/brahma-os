@@ -1,0 +1,57 @@
+{{- $architecture := or .architecture "arm64" -}}
+{{- $suite := or .suite "bookworm" -}}
+{{- $image := or .image "brahma-os-sbc-arm64.img" -}}
+{{- $imagesize := or .imagesize "4GB" -}}
+
+# BRAHMA OS — receta debos (perfil ARM64 SBC).
+# Base Debian arm64 + U-Boot + DTB. Build cruzado requiere qemu-user-static + binfmt.
+# PENDIENTE (por placa): bootloader (U-Boot) y DTB concretos; partición /boot FAT.
+# No ejecutar sin autorización (Fase 10). Ver README.md y ../../docs/DISTRO_PLAN.md
+
+architecture: {{ $architecture }}
+
+actions:
+  - action: debootstrap
+    suite: {{ $suite }}
+    components:
+      - main
+      - contrib
+      - non-free-firmware
+    mirror: http://deb.debian.org/debian
+    variant: minbase
+
+  - action: apt
+    recommends: false
+    packages:
+      - systemd
+      - systemd-sysv
+      - initramfs-tools
+      - u-boot-tools
+      - device-tree-compiler
+      - network-manager
+      - nftables
+      - sudo
+      - openssh-server
+      - ca-certificates
+      - locales
+
+  - action: overlay
+    source: overlays/rootfs
+    destination: /
+
+  - action: run
+    chroot: true
+    script: scripts/setup-sbc.sh
+
+  - action: image-partition
+    imagename: {{ $image }}
+    imagesize: {{ $imagesize }}
+    partitiontype: msdos
+    mountpoints:
+      - mountpoint: /
+        partition: root
+    partitions:
+      - name: root
+        parttype: ext4
+        start: 4MiB
+        end: 100%

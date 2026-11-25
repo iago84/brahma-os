@@ -1,0 +1,6 @@
+#!/bin/sh
+# BRAHMA OS — limpieza del entorno de live-build (perfil PC x86_64).
+set -e
+
+# `noauto` evita que `lb clean` re-invoque este mismo script (recursión infinita).
+lb clean noauto --purge

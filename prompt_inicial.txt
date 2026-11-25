@@ -1,0 +1,1753 @@
+
+Cargando mensajes anteriores…
+Este es el hardware para BRAHMA CORE 0.1: CPU: desconocida, RAM: 16 GB, GPU: nvidia, VRAM: 1, SSD disponible: 512GB, Windows: 10. Ajusta los modelos locales, memoria, servicios y configuración de rendimiento. Continuemos con la implementación.
+
+
+BRAHMA CORE 0.1 — Configuración para tu hardware
+Viable para desarrollo local GPU limitada
+
+Con 16 GB de RAM, una NVIDIA con 1 GB de VRAM y 512 GB SSD, podemos desarrollar BRAHMA sin necesidad de comprar hardware adicional.
+
+Pero debemos cambiar una decisión: BRAHMA funcionará principalmente mediante inferencia por CPU, utilizando la GPU solo si el controlador y el modelo permiten aprovechar esa pequeña VRAM.
+
+No intentaría ejecutar varios modelos grandes ni mantener todos los servicios de bases de datos activos simultáneamente.
+
+Mi objetivo es conseguir un sistema ligero, modular y preparado para crecer.
+
+1. Diagnóstico de hardware
+Recurso
+
+Tu equipo
+
+Decisión
+
+CPU
+
+Desconocida
+
+Verificar núcleos e hilos
+
+RAM
+
+16 GB
+
+Limitar servicios
+
+GPU
+
+NVIDIA
+
+Uso auxiliar
+
+VRAM
+
+1 GB
+
+No depender de CUDA
+
+SSD
+
+512 GB
+
+Suficiente para desarrollo
+
+Sistema
+
+Windows 10
+
+Desarrollo local
+
+Distribución inicial de memoria RAM
+
+Presupuesto orientativo, no consumo medido.
+
+Windows y procesos
+
+4.5 GB
+
+Ollama y modelo
+
+4.5 GB
+
+PostgreSQL
+
+0.8 GB
+
+Qdrant
+
+0.5 GB
+
+Backend y frontend
+
+1.2 GB
+
+Margen libre
+
+4.5 GB
+
+Esta distribución es un objetivo de planificación. Si el modelo supera el presupuesto, reduciremos el contexto o utilizaremos uno menor.
+
+2. Modelos locales: nueva selección
+He cambiado la configuración original.
+
+Modelo principal
+Qwen3 1.7B
+
+1.7B
+Conversación, razonamiento ligero, español e inglés.
+Estimación orientativa: unos 2,4 GB de memoria total a 4K de contexto, según la configuración. 
+localmodel.run
++1
+
+Instalación:
+
+ollama pull qwen3:1.7b
+
+Motor de embeddings
+BGE-M3
+
+Multilingüe
+Representación semántica de documentos en distintos idiomas, incluido español.
+ollama pull bge-m3
+
+Descarga aproximada: 1,2 GB. 
+Qdrant
+
+Importante: no mantendremos ambos modelos cargados simultáneamente. BRAHMA utilizará el modelo de conversación y ejecutará los embeddings por lotes cuando procese documentos.
+
+3. Ajustes de Ollama
+En PowerShell:
+
+[Environment]::SetEnvironmentVariable(
+  "OLLAMA_MAX_LOADED_MODELS", "1", "User"
+)
+
+[Environment]::SetEnvironmentVariable(
+  "OLLAMA_NUM_PARALLEL", "1", "User"
+)
+
+[Environment]::SetEnvironmentVariable(
+  "OLLAMA_KEEP_ALIVE", "2m", "User"
+)
+
+Después cierra Ollama desde su icono de la bandeja del sistema y vuelve a iniciarlo.
+
+La configuración de BRAHMA será:
+
+Parámetro
+
+Valor
+
+Contexto
+
+4096 tokens
+
+Salida máxima
+
+512 tokens
+
+Modelos simultáneos
+
+1
+
+Peticiones paralelas
+
+1
+
+Permanencia en memoria
+
+2 minutos
+
+Inferencia
+
+CPU principalmente
+
+No forzaremos el uso de CUDA: dejaremos que Ollama detecte qué parte del modelo puede ejecutar la GPU.
+
+4. Redistribución de servicios
+Voy a simplificar el despliegue inicial:
+
+Servicio
+
+Decisión
+
+Ollama
+
+Activo
+
+FastAPI
+
+Activo
+
+Next.js
+
+Activo durante desarrollo
+
+PostgreSQL
+
+Incorporar en persistencia
+
+Qdrant
+
+Incorporar en RAG
+
+Neo4j
+
+Posponer
+
+¿Por qué posponer Neo4j?
+
+Porque podemos comenzar implementando las relaciones de BRAHMA REKHA en PostgreSQL. Cuando tengamos suficiente volumen de conocimiento y necesitemos consultas de grafos más complejas, incorporaremos Neo4j.
+
+Así ahorramos RAM y evitamos mantener tres bases de datos desde el primer día.
+
+5. Comprobación del equipo
+He añadido un script para identificar el procesador, la memoria real, la tarjeta gráfica y sus controladores.
+
+Abre la carpeta del proyecto y ejecuta:
+
+.\scripts\diagnose-hardware.ps1
+
+También puedes ejecutar directamente:
+
+Get-CimInstance Win32_Processor |
+Select-Object Name, NumberOfCores, NumberOfLogicalProcessors
+
+nvidia-smi
+
+Con esto podremos saber si la GPU tiene realmente 1 GB de VRAM dedicada y qué procesador tenemos disponible.
+
+6. Una advertencia sobre Windows 10
+Ollama requiere actualmente Windows 10 22H2 o posterior y controladores NVIDIA compatibles. 
+
+GitHub
+
+Además, Windows 10 terminó su soporte general el 14 de octubre de 2025. Te recomiendo actualizar a Windows 11 si el equipo lo permite, o acogerte al programa ESU mientras tanto. 
+
+Microsoft Support
+
+Para BRAHMA, mantendremos todos los servicios ligados a 127.0.0.1, sin publicar puertos.
+
+7. Nueva versión del proyecto
+BRAHMA CORE 0.1 — Hardware Tuned
+
+Actualizado
+Incluye:
+
+Modelo Qwen3 1.7B como predeterminado.
+
+Configuración de contexto y memoria.
+
+Embeddings BGE-M3.
+
+Perfil específico de hardware.
+
+Diagnóstico automático de Windows.
+
+Ajustes del backend y documentación.
+
+Eliminación de la dependencia pesada de PyTorch.
+
+8. Siguiente etapa: construir el verdadero cerebro
+Una vez comprobado el entorno, quiero desarrollar estos tres componentes en este orden:
+
+Primero
+BRAHMA MEMORY ENGINE
+
+Memoria persistente, conversaciones, documentos, recuperación contextual y almacenamiento de conocimiento.
+
+Segundo
+BRAHMA REKHA ENGINE
+
+Grafo de conceptos, entidades, relaciones, evidencias y contradicciones.
+
+Tercero
+BRAHMA MIND ENGINE
+
+Planificación, razonamiento, agentes especializados y resolución de problemas.
+
+Una última comprobación
+Antes de construir el Memory Engine, necesito que ejecutes el diagnóstico y me proporciones el resultado de estos dos comandos:
+
+.\scripts\diagnose-hardware.ps1
+
+ollama run qwen3:1.7b
+
+Prueba a preguntarle algo en español y comprueba si responde con fluidez.
+
+Mi objetivo es que BRAHMA no dependa de la potencia de tu ordenador para definir su arquitectura. Este equipo será nuestro laboratorio de desarrollo; la arquitectura debe poder migrar mañana a un servidor mucho más potente sin tener que reconstruir su cerebro.
+
+me gustaria llevarlo mas lejos aun, a una distribucion linux, asistida por AI de multiples modos
+Yago, aquí creo que acabamos de encontrar una dirección mucho más ambiciosa para BRAHMA.
+
+No lo limitaría a una inteligencia artificial que funciona sobre Windows o Linux. Diseñaría BRAHMA como una distribución Linux propia, asistida por inteligencia artificial desde el núcleo de su experiencia de usuario.
+
+No sería simplemente Ubuntu con un chatbot instalado.
+
+Sería un entorno operativo en el que la inteligencia artificial participa en la administración, el conocimiento, el desarrollo, la automatización, la seguridad y la interacción con el sistema.
+
+Mi propuesta es convertir BRAHMA en dos proyectos que evolucionen juntos:
+
+BRAHMA OS: sistema operativo Linux, modular, seguro y optimizado.
+
+BRAHMA AI: inteligencia central que entiende el sistema, sus recursos, sus aplicaciones y las necesidades del usuario.
+
+Y un tercer elemento que los conectaría:
+
+3. BRAHMA REKHA: la arquitectura de conocimiento, memoria y relaciones que permite que todo el ecosistema aprenda de su contexto.
+
+1. La nueva visión: BRAHMA OS
+Monolith - Your Local-First Knowledge Operating System
+BRAHMA OS
+AN INTELLIGENT OPERATING ENVIRONMENT
+
+Beyond the operating system.
+An environment that understands, assists and evolves.
+AI NATIVE
+
+Inteligencia integrada
+KNOWLEDGE FIRST
+
+Conocimiento persistente
+MULTIMODAL
+
+Voz, texto, visión y código
+AUTONOMOUS
+
+Automatización controlada
+PRIVACY FIRST
+
+Procesamiento local
+OPEN SOURCE
+
+Base tecnológica abierta
+La diferencia fundamental sería que en un Linux convencional tú utilizas las aplicaciones y administras el sistema.
+
+En BRAHMA OS podrías decir:
+
+«Analiza el rendimiento de mi equipo y optimiza los servicios».
+
+«Encuentra todos mis proyectos relacionados con inteligencia artificial».
+
+«Desarrolla una aplicación y prepara su entorno».
+
+«Explícame por qué está fallando este servicio».
+
+«Organiza mis documentos y relaciona sus conocimientos».
+
+«Crea un flujo de trabajo que automatice estas tareas».
+
+BRAHMA interpretaría la intención, planificaría la operación, solicitaría autorización cuando fuera necesaria y ejecutaría las acciones permitidas.
+
+2. Qué distribución utilizaría como fundamento
+No empezaría creando un kernel Linux propio. Sería un gasto enorme de tiempo sin aportar una ventaja inicial.
+
+Crearía una distribución derivada, con identidad, servicios, aplicaciones, configuración, instalador y experiencia de usuario propios.
+
+Ubuntu 20.04.4 LTS Desktop and Server Bootable DVD Set - 2024 Edition | Reliable | eBay
+Ubuntu 26.04 LTS
+
+Base recomendada
+Kernel, controladores, paquetes, seguridad y soporte a largo plazo.
+
+Soporte estándar hasta mayo de 2031. 
+Ubuntu release notes
++1
+Ubuntu Desktop
+How To Make Your Kde Plasma Desktop Look Aesthetic at Nate Vidal blog
+KDE Plasma
+
+Entorno gráfico
+Personalización profunda, paneles, ventanas, widgets y una interfaz propia.
+
+KDE Plasma
+Embrace systemd-resolved | Ctrl blog
+systemd
+
+Infraestructura
+Gestión de servicios, arranque, dependencias y procesos del sistema.
+
+Documentación systemd
+¿Por qué Ubuntu 26.04 LTS y no una distribución más experimental? Porque necesitamos compatibilidad de hardware, mantenimiento prolongado y un ecosistema amplio de aplicaciones. Canonical también documenta soporte para CUDA y herramientas de IA en esta versión. 
+
+Canonical
++1
+
+La distribución tendría nombre propio:
+
+BRAHMA OS — Resolute Foundation
+
+No sería una distribución oficial de Ubuntu, sino un proyecto independiente basado en ella.
+
+3. BRAHMA AI: inteligencia multimodal
+Aquí está el verdadero salto tecnológico.
+
+No quiero un único asistente que solamente reciba texto. Quiero varios modos de inteligencia coordinados por BRAHMA CORE.
+
+NEXUS LOCAL - a privacy-first multimodal AI operating system - DEV Community
+Los ocho modos de BRAHMA
+Matthew Board — Creative Technologist | sleektiki.ai
+01. BRAHMA TEXT
+
+Conversación, razonamiento, investigación y conocimiento.
+
+Qwen local + BRAHMA Knowledge.
+YesPanchi Tech Solutions Pvt Ltd | Chennai
+02. BRAHMA VOICE
+
+Hablar con el sistema, dictar, escuchar respuestas y ejecutar comandos por voz.
+
+Whisper.cpp + Piper.
+AI Website - The Future Starts Here
+03. BRAHMA VISION
+
+Comprender imágenes, capturas, documentos y elementos visuales.
+
+OCR + análisis visual + modelos multimodales cuando el hardware lo permita.
+How Developers Use Claude Code in Real Projects (2026)
+04. BRAHMA DEV
+
+Programación, depuración, generación de código, terminal y gestión de proyectos.
+
+Agentes de desarrollo y herramientas de programación.
+eDEX-UI: uma interface de computador Sci-Fi totalmente funcional inspirada no TRON Legacy - Blog Linux Avante
+05. BRAHMA SYSTEM
+
+Diagnóstico, procesos, memoria, almacenamiento, servicios, red y seguridad.
+
+Integración con Linux, systemd y D-Bus.
+Enterprise Knowledge Graph Architecture: A Guide · SemanticOS
+06. BRAHMA KNOWLEDGE
+
+Memoria, documentos, libros, investigaciones y relaciones entre conocimientos.
+
+PostgreSQL + Qdrant + BRAHMA REKHA.
+FlowBetter Blog
+07. BRAHMA AUTOMATION
+
+Flujos de trabajo, automatización de aplicaciones y agentes especializados.
+
+Motor de tareas y permisos de ejecución.
+Futuristic Holographic AI Workspace Prompt — Cinematic Desig | sora2hub
+08. BRAHMA CREATIVE
+
+Escritura, imágenes, audio, música, diseño y creación de contenidos.
+
+Herramientas locales especializadas y motores multimodales opcionales.
+Una característica importante: estos modos no tienen que funcionar todos simultáneamente. BRAHMA debe activar los motores necesarios según la tarea y los recursos disponibles.
+
+4. Arquitectura interna de BRAHMA OS
+La separaría en cinco capas.
+
+BRAHMA EXPERIENCE
+Desktop · Voice · Chat · Dashboard · Notifications
+BRAHMA AI CORE
+Mind · Memory · Knowledge · Vision · Voice · Agents
+BRAHMA SYSTEM BRIDGE
+D-Bus · Polkit · System API · Permissions · Audit
+LINUX FOUNDATION
+Kernel · systemd · Drivers · Filesystem · Networking
+HARDWARE
+
+CPU · GPU · RAM · SSD · Audio · Camera · Network
+Una decisión de ingeniería fundamental
+BRAHMA AI no tendrá acceso directo e ilimitado al sistema operativo.
+
+Crearemos un intermediario llamado BRAHMA SYSTEM BRIDGE.
+
+Ejemplo:
+
+El usuario dice:
+
+«Libera espacio en disco y elimina archivos temporales».
+
+El flujo será:
+
+BRAHMA analiza el almacenamiento.
+
+Identifica archivos temporales.
+
+Clasifica lo que es seguro eliminar.
+
+Presenta una simulación de los cambios.
+
+Solicita autorización.
+
+Ejecuta exclusivamente las operaciones permitidas.
+
+Registra el resultado.
+
+Nunca permitiremos que un modelo ejecute comandos arbitrarios como administrador simplemente porque los haya generado.
+
+Utilizaremos D-Bus, Polkit, permisos específicos y operaciones predefinidas.
+
+5. Tecnologías de BRAHMA OS
+Área
+
+Tecnología
+
+Sistema base
+
+Ubuntu 26.04 LTS
+
+Kernel
+
+Linux
+
+Escritorio
+
+KDE Plasma
+
+Gestor de servicios
+
+systemd
+
+Comunicación del sistema
+
+D-Bus
+
+Autorizaciones
+
+Polkit
+
+AI Core
+
+Python + FastAPI
+
+System Bridge
+
+Rust
+
+Aplicación nativa
+
+Qt 6 / QML
+
+Dashboard
+
+React + Next.js
+
+Inferencia local
+
+Ollama
+
+Voz STT
+
+whisper.cpp
+
+Voz TTS
+
+Piper
+
+Visión documental
+
+Tesseract / OCR
+
+Memoria
+
+PostgreSQL + Qdrant
+
+Conocimiento
+
+BRAHMA REKHA
+
+La aplicación Qt/QML sería la interfaz nativa de escritorio. El dashboard web permitiría administrar el ecosistema desde el navegador y la API permitiría conectar otras aplicaciones.
+
+6. La experiencia de usuario
+No quiero que BRAHMA sea una interfaz con un chat en una esquina.
+
+Quiero un escritorio que tenga inteligencia como elemento central, pero sin resultar invasivo.
+
+🚀 Building "LISA" — My Personal Jarvis on Linux - DEV Community
+Imagino cuatro zonas:
+
+BRAHMA DESK: escritorio, ventanas, aplicaciones y archivos.
+
+BRAHMA PANEL: asistente permanente, accesible mediante teclado o voz.
+
+BRAHMA CONTROL: monitor de sistema, servicios, seguridad y recursos.
+
+BRAHMA KNOWLEDGE SPACE: visualización de documentos, ideas, conceptos y conexiones.
+
+También tendría tres formas de interacción:
+
+Alma - Elegant AI Provider Orchestration
+Texto
+
+Conversación y órdenes.
+AI 语音生成器：在线创建自然配音 | Pixomi AI
+Voz
+
+Hablar y escuchar.
+SightLine | Devpost
+Visión
+
+Interpretar imágenes y pantallas.
+Además, incorporaría un modo de operación silencioso: BRAHMA puede trabajar con notificaciones discretas, sin estar escuchando continuamente ni capturando pantallas sin autorización.
+
+7. Adaptación al hardware disponible
+Tu equipo tiene 16 GB de RAM y 1 GB de VRAM. Eso no impide crear BRAHMA OS, pero condiciona la inteligencia local.
+
+Capacidad
+
+Estrategia inicial
+
+Texto
+
+Qwen3 1.7B cuantizado
+
+Voz a texto
+
+Whisper tiny/base en CPU
+
+Texto a voz
+
+Piper
+
+OCR
+
+Tesseract
+
+Visión
+
+OCR y análisis de imágenes por etapas
+
+Agentes
+
+Un agente principal y tareas secuenciales
+
+Memoria
+
+Procesamiento por lotes
+
+Automatización
+
+Motor de reglas y herramientas
+
+No intentaría ejecutar un modelo de visión grande en esa GPU. La VRAM es insuficiente para una experiencia fluida con modelos multimodales exigentes.
+
+La arquitectura permitirá añadir modelos mejores cuando dispongamos de más RAM o una GPU con más memoria.
+
+8. Cómo construiríamos la distribución
+Este es el aspecto que más me interesa: construir BRAHMA OS de manera progresiva, sin destruir la estabilidad del sistema.
+
+Etapa 1
+BRAHMA Desktop Prototype
+
+Instalar Ubuntu en un entorno de pruebas y desarrollar BRAHMA AI como aplicación integrada.
+
+Resultado: un Linux que ya puede utilizar BRAHMA.
+Etapa 2
+BRAHMA System Integration
+
+Crear servicios systemd, System Bridge, D-Bus, permisos, notificaciones y control del sistema.
+
+Resultado: BRAHMA puede administrar operaciones autorizadas de Linux.
+Etapa 3
+BRAHMA Desktop Environment
+
+Personalizar KDE, crear paneles, aplicación nativa, accesos rápidos y experiencia visual.
+
+Resultado: escritorio reconocible como BRAHMA.
+Etapa 4 — BRAHMA Distribution
+
+Crear repositorio de paquetes, configuración predeterminada, instalador, imagen ISO y actualizaciones.
+
+Resultado: primera distribución instalable.
+Etapa 5 — BRAHMA Ecosystem
+
+Gestor de extensiones, agentes, aplicaciones, modelos y sincronización opcional entre equipos.
+
+Resultado: ecosistema independiente y ampliable.
+No distribuiría una ISO hasta que el prototipo haya superado las pruebas de hardware, seguridad y recuperación.
+
+9. La distribución también debe poder evolucionar
+Quiero establecer algunas características desde el diseño inicial:
+
+BRAHMA Store: instalación de módulos, agentes y aplicaciones.
+
+BRAHMA Updates: actualizaciones verificadas y firmadas.
+
+BRAHMA Recovery: recuperación del sistema y restauración.
+
+BRAHMA Profiles: perfiles de rendimiento según el hardware.
+
+BRAHMA Offline: funcionamiento sin conexión a Internet.
+
+BRAHMA Cloud Bridge: conexión opcional a modelos y servicios externos.
+
+La privacidad será una característica fundamental: los documentos personales, las conversaciones y la memoria permanecerán locales por defecto.
+
+También quiero que el sistema permita instalar nuevas capacidades sin tener que reconstruir toda la distribución.
+
+10. Organización del proyecto
+Separaría el repositorio en esta estructura:
+
+BRAHMA/
+│
+├── brahma-core/
+│   ├── mind/
+│   ├── memory/
+│   ├── knowledge/
+│   ├── rekha/
+│   ├── vision/
+│   ├── voice/
+│   ├── agents/
+│   └── api/
+│
+├── brahma-os/
+│   ├── base/
+│   ├── kernel/
+│   ├── desktop/
+│   ├── system-bridge/
+│   ├── services/
+│   ├── security/
+│   ├── installer/
+│   └── iso/
+│
+├── brahma-ui/
+│   ├── desktop/
+│   ├── dashboard/
+│   ├── widgets/
+│   └── themes/
+│
+├── brahma-models/
+│   ├── language/
+│   ├── embeddings/
+│   ├── speech/
+│   └── vision/
+│
+├── brahma-store/
+├── brahma-updater/
+├── brahma-recovery/
+└── documentation/
+Esto permite desarrollar BRAHMA OS y BRAHMA CORE independientemente, pero con contratos de comunicación bien definidos.
+
+11. Mi propuesta de versiones
+BRAHMA OS
+PRODUCT ROADMAP
+
+0.1 — Genesis
+Primer escritorio Linux con inteligencia integrada.
+0.2 — Awakening
+
+Voz, visión documental, control del sistema y memoria.
+
+0.3 — Rekha
+
+Grafo de conocimiento y agentes especializados.
+
+0.5 — Intelligence
+
+Automatización, razonamiento avanzado y multimodalidad.
+
+1.0 — BRAHMA OS
+
+Distribución Linux propia, instalable, actualizable y recuperable.
+
+12. Qué haría ahora mismo
+Mi recomendación es no instalar todavía nada que pueda modificar tu Windows.
+
+Primero crearía un entorno de desarrollo Linux mediante una máquina virtual o un USB Live. Una vez comprobados los controladores NVIDIA, el audio, la red y el rendimiento, instalaríamos BRAHMA en un SSD independiente o mediante arranque dual.
+
+Para tu hardware, prefiero un escritorio KDE ligero, modelos pequeños y servicios de IA bajo demanda.
+
+Hay una cuestión que quiero definir antes de empezar a construir la primera imagen de BRAHMA OS:
+
+BRAHMA OS — Genesis Configuration
+¿Cómo quieres instalarlo inicialmente?
+
+
+SSD externo: BRAHMA independiente de Windows.
+
+Dual boot: Windows y BRAHMA en el mismo ordenador.
+
+Reemplazar Windows por BRAHMA.
+
+Máquina virtual primero, sin modificar particiones.
+¿Qué quieres priorizar en la primera versión?
+
+
+Un escritorio Linux completamente integrado con BRAHMA AI.
+
+Un asistente multimodal capaz de controlar Linux.
+
+El cerebro de conocimiento y memoria persistente.
+
+Todo integrado desde el principio, aunque se desarrolle por fases.
+Una última idea: BRAHMA no debería ser solamente un sistema operativo que utiliza inteligencia artificial. Debería ser un sistema operativo cuya arquitectura está diseñada para trabajar junto a una inteligencia artificial.
+
+Esa diferencia es la que puede convertirlo en un producto tecnológico verdaderamente propio de Naira Studio.
+
+Para BRAHMA OS Genesis elijo instalación: vm. Prioridad: all. Diseña el siguiente sprint técnico y comienza a construir la base de la distribución.
+
+
+
+BRAHMA OS GENESIS — Sprint 01
+Inicio de construcción Virtualización
+
+Vamos a dar el primer paso hacia una distribución Linux propia de Naira Studio.
+
+He tomado una decisión importante: BRAHMA OS Genesis será una instalación Linux independiente dentro de una máquina virtual, pero su arquitectura estará preparada para convertirse posteriormente en una distribución instalable.
+
+No vamos a modificar particiones, sustituir Windows ni tocar el arranque de tu ordenador.
+
+El primer objetivo no es conseguir una ISO bonita. Es construir un sistema que arranque, tenga una identidad visual propia, ejecute BRAHMA CORE y pueda comunicarse con Linux de forma controlada.
+
+1. Diseño del primer entorno
+Looking for a gold Theme - Help - KDE Discuss
+BRAHMA OS
+GENESIS · 0.1.0
+
+Intelligence begins here.
+Configuración de máquina virtual
+
+Recurso
+
+Asignación
+
+Sistema base
+
+Ubuntu 26.04 LTS
+
+Escritorio
+
+KDE Plasma
+
+RAM
+
+8 GB
+
+CPU
+
+4 vCPU
+
+Disco
+
+80 GB dinámicos
+
+Red
+
+NAT
+
+Vídeo
+
+128 MB
+
+Aceleración 3D
+
+Activada si es compatible
+
+EFI
+
+Activado
+
+Sin modificar Windows
+La máquina virtual tendrá su propio disco y sistema de archivos.
+Para tu ordenador de 16 GB, reservaría 8 GB para la máquina virtual y dejaría el resto a Windows. Si la memoria empieza a escasear, bajaremos a 6 GB.
+
+La GPU de 1 GB no se compartirá como si fuera una GPU dedicada para IA: la máquina virtual utilizará principalmente CPU para inferencia.
+
+2. Qué vamos a construir en este sprint
+Componente
+
+Entregable
+
+Genesis Base
+
+Instalación Linux reproducible
+
+Genesis Desktop
+
+KDE con identidad BRAHMA
+
+AI Core
+
+Servicio de inteligencia
+
+System Bridge
+
+Comunicación segura con Linux
+
+Voice
+
+Primera infraestructura de voz
+
+Knowledge
+
+Base para memoria documental
+
+Dashboard
+
+Interfaz de control
+
+Installer
+
+Preparación para una futura ISO
+
+Criterio de finalización: podremos arrancar BRAHMA OS, abrir su escritorio, conversar con BRAHMA AI y consultar el estado del sistema desde su propia interfaz.
+
+3. Base Linux: elección definitiva
+He afinado la elección: utilizaremos Kubuntu 26.04.1 LTS, no Ubuntu Desktop con KDE añadido posteriormente.
+
+Así tenemos Plasma integrado desde la instalación, sin duplicar entornos gráficos. La imagen oficial ocupa aproximadamente 4,7 GB. 
+
+cdimages.ubuntu.com
++1
+
+Kubuntu | Kubuntu
+Descargar Kubuntu 26.04.1
+
+Descarga oficial ISO
+Arquitectura AMD64 · 64 bits
+Comprueba el archivo ISO desde PowerShell:
+
+Get-FileHash "C:\ISO\kubuntu-26.04.1-desktop-amd64.iso" -Algorithm SHA256
+
+Hash oficial:
+
+831e4d4bb85098339ba43d3502cd6619
+b27e76daf37246a084cd68a6413090b8
+Fuente: Comprobaciones SHA256 oficiales.
+
+4. Primer paquete de desarrollo construido
+BRAHMA OS Genesis — Sprint 01
+
+Construido
+11 archivos
+Incluye:
+
+Script PowerShell para crear la máquina virtual.
+
+Configuración de VirtualBox.
+
+Bootstrap de Kubuntu.
+
+Estructura inicial de BRAHMA OS.
+
+Primer BRAHMA System Bridge.
+
+API de diagnóstico Linux.
+
+Servicio systemd aislado.
+
+Documentación y criterios de aceptación.
+
+Paquete de código inicial. Todavía no es una ISO ni una distribución instalable.
+5. Crear la máquina virtual
+Instala Oracle VirtualBox 7.2 desde:
+
+Descargar VirtualBox
+Después:
+
+Descarga y verifica Kubuntu.
+
+Descomprime el paquete Genesis.
+
+Abre PowerShell dentro de la carpeta del proyecto.
+
+Ejecuta:
+
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+.\host\create-genesis-vm.ps1 `
+  -IsoPath "C:\ISO\kubuntu-26.04.1-desktop-amd64.iso"
+
+El script crea la VM con 6 GB RAM, 2 CPU, 80 GB de disco dinámico y NAT.
+
+Después inicia la máquina desde VirtualBox y completa manualmente el instalador de Kubuntu.
+
+Importante: crea un snapshot llamado ubuntu-clean-install cuando termine la instalación. Las Guest Additions de VirtualBox permitirán posteriormente mejorar la integración gráfica y las carpetas compartidas. 
+
+docs.oracle.com
+
+6. Instalar el primer núcleo de BRAHMA dentro de Linux
+Una vez iniciado Kubuntu, transfiere el proyecto a la máquina virtual.
+
+En el terminal de Kubuntu:
+
+cd brahma-os-genesis-sprint01
+
+chmod +x guest/*.sh
+
+sudo ./guest/genesis-bootstrap.sh
+
+Después instala el System Bridge:
+
+sudo ./guest/install-system-bridge.sh
+
+sudo systemctl enable --now brahma-system-bridge
+
+Comprueba:
+
+curl http://127.0.0.1:8765/health
+
+Y:
+
+curl http://127.0.0.1:8765/v1/system/overview
+
+Si todo funciona, tendremos el primer componente de BRAHMA OS comunicándose directamente con el sistema operativo.
+
+7. Lo que construiremos en Sprint 02
+Una vez validado Genesis, avanzaremos hacia la integración real de inteligencia.
+
+SPRINT 02 — BRAHMA INTELLIGENCE DESKTOP
+
+Crear el escritorio visual BRAHMA con tema propio.
+Integrar BRAHMA CORE con el System Bridge.
+Construir el panel de IA permanente.
+Incorporar chat local con Ollama.
+Crear el sistema de notificaciones inteligentes.
+Integrar la primera interfaz de voz.
+Incorporar monitor de recursos y servicios.
+8. Una decisión de producto que quiero dejar establecida
+BRAHMA tendrá tres niveles de autonomía:
+
+Nivel
+
+Comportamiento
+
+Observer
+
+Analiza y recomienda
+
+Assistant
+
+Prepara operaciones y solicita autorización
+
+Operator
+
+Ejecuta operaciones previamente autorizadas
+
+El modo Operator nunca tendrá acceso irrestricto a root. Las operaciones administrativas se implementarán mediante herramientas específicas y permisos explícitos.
+
+Esto es especialmente importante si queremos que BRAHMA sea una distribución que otras personas puedan instalar y utilizar con seguridad.
+
+BRAHMA OS
+GENESIS · NAIRA STUDIO
+
+From a system that computes, to a system that understands.
+De un sistema que calcula a un sistema que comprende.
+Tu siguiente acción: instala VirtualBox, descarga Kubuntu y ejecuta el script de creación. Cuando llegues al escritorio de Kubuntu, envíame una captura. A partir de ese punto podremos empezar a transformar ese Linux en BRAHMA, componente por componente.
+
+paso 5, no puedo usar WSL??? seria mas sencillo, no?
+
+
+Sí. De hecho, para esta fase de BRAHMA OS, utilizar WSL2 puede ser bastante más sencillo que VirtualBox.
+
+Y cambiaría nuestra estrategia: utilizaría WSL2 como laboratorio de desarrollo de BRAHMA, manteniendo Windows intacto.
+
+Pero hay una distinción importante:
+
+WSL2 permite ejecutar Linux real mediante un kernel Linux dentro de una máquina virtual ligera.
+
+No proporciona por sí solo un escritorio Linux completo ni sustituye Windows.
+
+Podemos desarrollar y probar BRAHMA CORE, sus servicios, agentes, APIs, memoria y System Bridge.
+
+Para construir y validar el escritorio completo, el arranque y la ISO de BRAHMA OS, necesitaremos posteriormente una VM convencional o hardware físico.
+
+Mi recomendación: WSL2 ahora, VirtualBox más adelante para validar la distribución.
+
+1. Qué podremos hacer con WSL2
+Capacidad
+
+WSL2
+
+BRAHMA CORE y FastAPI
+
+Sí
+
+Ollama y modelos locales
+
+Sí
+
+PostgreSQL y Qdrant
+
+Sí
+
+Neo4j
+
+Sí
+
+BRAHMA System Bridge
+
+Sí
+
+Agentes y automatización
+
+Sí
+
+Aplicaciones Linux gráficas
+
+Sí, WSLg
+
+Escritorio KDE completo
+
+No como escritorio independiente
+
+Crear y probar una ISO
+
+Requiere entorno adicional
+
+Sustituir Windows
+
+No
+
+Microsoft permite ejecutar aplicaciones gráficas Linux mediante WSLg, pero aclara que no proporciona un escritorio Linux completo independiente. 
+
+Microsoft Learn
++1
+
+Además, WSL2 puede utilizar aceleración GPU compatible con determinados controladores, aunque nuestra NVIDIA de 1 GB seguirá siendo muy limitada para modelos grandes.
+
+2. Arquitectura nueva: BRAHMA WSL LAB
+WINDOWS 10
+
+Escritorio principal · navegador · VS Code
+WSL2
+Kernel Linux · systemd · filesystem Linux
+BRAHMA OS GENESIS
+
+BRAHMA CORE
+
+BRAHMA MIND
+
+BRAHMA MEMORY
+
+BRAHMA REKHA
+
+BRAHMA VOICE
+
+BRAHMA VISION
+
+SYSTEM BRIDGE
+
+BRAHMA DESK
+
+Linux services
+
+Ollama · PostgreSQL · Qdrant · API · Agents
+La ventaja es que desarrollaremos casi todo el ecosistema en un Linux real sin abandonar Windows.
+
+3. Instalación de WSL2
+Primero comprueba tu versión de Windows:
+
+Pulsa Win + R, escribe:
+
+winver
+Necesitamos:
+
+Windows 10 build 19041 o superior para WSL2.
+
+Build 19044 o superior para aplicaciones gráficas Linux mediante WSLg. 
+
+Microsoft Learn
++1
+
+Paso A. Instalar Ubuntu
+Abre PowerShell como administrador:
+
+wsl --install -d Ubuntu-24.04
+
+Reinicia Windows si te lo solicita.
+
+Abre Ubuntu desde el menú Inicio y crea tu usuario y contraseña Linux.
+
+Comprueba:
+
+wsl --update
+wsl --set-default-version 2
+wsl -l -v
+
+Debe aparecer Ubuntu con versión 2.
+
+Paso B. Activar systemd
+Dentro de Ubuntu:
+
+sudo nano /etc/wsl.conf
+
+Añade:
+
+[boot]
+systemd=true
+Guarda y cierra.
+
+Desde PowerShell:
+
+wsl --shutdown
+wsl -d Ubuntu-24.04
+
+Dentro de Linux:
+
+systemctl is-system-running
+
+Paso C. Limitar recursos
+En Windows, abre:
+
+notepad $env:USERPROFILE\.wslconfig
+
+Introduce:
+
+[wsl2]
+memory=6GB
+processors=2
+swap=2GB
+localhostForwarding=true
+Reinicia WSL:
+
+wsl --shutdown
+
+Esto deja margen suficiente para Windows y los procesos de BRAHMA.
+
+4. Instalar BRAHMA Genesis
+He preparado una edición específica para WSL2, separada de la versión VirtualBox.
+
+BRAHMA OS Genesis — WSL2 Edition
+
+Preparado
+Instalación Linux sin ISO.
+
+Configuración de systemd.
+
+Bootstrap de dependencias.
+
+BRAHMA System Bridge.
+
+API de diagnóstico.
+
+Límites de recursos para 16 GB RAM.
+
+Dentro de Ubuntu, coloca el proyecto en tu directorio Linux y ejecuta:
+
+cd ~/projects/brahma-os-genesis-wsl
+
+chmod +x guest/*.sh
+
+sudo ./guest/genesis-bootstrap.sh
+
+sudo ./guest/install-system-bridge.sh
+
+sudo systemctl enable --now brahma-system-bridge
+
+Comprueba el funcionamiento:
+
+curl http://127.0.0.1:8765/health
+
+Y:
+
+curl http://127.0.0.1:8765/v1/system/overview
+
+Deberías recibir información del sistema Linux.
+
+5. Qué cambia en nuestra estrategia
+Fase
+
+Entorno
+
+BRAHMA CORE
+
+WSL2
+
+BRAHMA MEMORY
+
+WSL2
+
+BRAHMA REKHA
+
+WSL2
+
+BRAHMA MIND
+
+WSL2
+
+BRAHMA VOICE
+
+WSL2
+
+BRAHMA DESK
+
+WSLg + Windows
+
+BRAHMA OS ISO
+
+VM Kubuntu
+
+Validación final
+
+VM y hardware real
+
+No instalaremos KDE completo dentro de WSL. Desarrollaremos la interfaz de BRAHMA como aplicación Linux y dashboard web, y más adelante la integraremos en KDE Plasma en nuestra distribución real.
+
+6. Nuestra siguiente meta
+BRAHMA GENESIS
+First Intelligence Layer
+Windows host → Linux kernel → BRAHMA Core → System Bridge → Knowledge Engine.
+
+Quiero que primero consigas arrancar Ubuntu en WSL2 y que funcione el System Bridge. Después integraremos el BRAHMA CORE que ya hemos preparado, en lugar de crear dos cerebros separados.
+
+Cuando lo tengas, pásame el resultado de:
+
+wsl -l -v
+
+Y desde Ubuntu:
+
+systemctl is-system-running
+curl http://127.0.0.1:8765/v1/system/overview
+
+Con esos resultados pasaremos a construir el primer escritorio inteligente de BRAHMA.
+
+PS F:\brahma-core-0.1-hardware-tuned\brahma-core-0.1> .\scripts\diagnose-hardware.ps1
+
+=== BRAHMA HARDWARE DIAGNOSTICS ===
+
+
+Caption      : Microsoft Windows 10 Pro
+Version      : 10.0.19045
+BuildNumber  : 19045
+RAM_Total_GB : 24
+RAM_Free_GB  : 12,3
+
+
+
+
+
+Name                      : AMD FX(tm)-6300 Six-Core
+                            Processor
+NumberOfCores             : 3
+NumberOfLogicalProcessors : 6
+
+
+
+
+
+Name          : Adaptador de pantalla básico de Microsoft     
+AdapterRAM    : 0
+DriverVersion : 10.0.19041.3636
+
+
+
+
+Name Free_GB Used_GB
+---- ------- -------
+C       46,4    72,2
+D      251,8   679,7
+E          0       0
+F        539   414,9
+
+
+
+=== NVIDIA ===
+nvidia-smi not found. Check NVIDIA driver installation.
+
+=== OLLAMA ===
+Ollama CLI not found.
+PS F:\brahma-core-0.1-hardware-tuned\brahma-core-0.1>
+…
+Perfecto. Ahora tenemos el hardware real y podemos ajustar BRAHMA OS Genesis con datos concretos, no con suposiciones.
+
+Hay una buena noticia: tu equipo tiene más memoria RAM de la que habíamos considerado inicialmente. Y una limitación importante: Windows no está detectando correctamente la tarjeta gráfica mediante su controlador actual.
+
+1. Diagnóstico de tu equipo
+BRAHMA — Hardware report
+
+Requiere ajustes
+RAM TOTAL
+
+24 GB
+12,3 GB libres
+
+PROCESADOR
+
+6 hilos
+AMD FX-6300 · 3 núcleos físicos
+
+WINDOWS
+
+10 Pro
+Build 19045
+
+GPU
+
+No detectada
+Adaptador básico Microsoft
+
+Espacio disponible
+
+Unidad
+
+Libre
+
+C:
+
+46,4 GB
+
+D:
+
+251,8 GB
+
+F:
+
+539 GB
+
+Qué significa
+RAM: 24 GB nos permiten asignar 8 GB a WSL2 y conservar margen para Windows.
+
+CPU: el FX-6300 es antiguo, pero suficiente para desarrollar servicios, APIs, bases de datos y la arquitectura de BRAHMA. El razonamiento con modelos locales grandes será limitado.
+
+GPU: Microsoft Basic Display Adapter indica que Windows está usando un controlador genérico. No demuestra que la tarjeta NVIDIA esté averiada.
+
+Ollama: todavía no está instalado o no está disponible en el PATH.
+
+Mi recomendación es desarrollar BRAHMA en WSL2, sin VirtualBox por ahora, y reservar la unidad F: para el proyecto y sus datos.
+
+2. Configuración recomendada para BRAHMA
+Empezaría con estos límites:
+
+Recurso
+
+Configuración
+
+RAM WSL2
+
+6 GB
+
+CPU WSL2
+
+4 procesadores
+
+Swap WSL2
+
+4 GB
+
+Ollama
+
+1 modelo simultáneo
+
+Peticiones paralelas
+
+1
+
+Contexto inicial
+
+4.096 tokens
+
+No asignaría los 8 GB todavía: necesitamos que Windows siga teniendo margen para trabajar.
+
+3. Antes de instalar: comprobar WSL2
+Tu Windows 10 Pro, versión 22H2 y build 19045, cumple los requisitos de versión para WSL2.
+
+Abre PowerShell como administrador y ejecuta:
+
+wsl --status
+wsl --version
+wsl -l -v
+
+Si WSL no está instalado, ejecuta:
+
+wsl --install -d Ubuntu-24.04
+
+Reinicia Windows si te lo solicita.
+
+Importante: tienes 46,4 GB libres en C: y 539 GB en F:. No quiero que llenemos C: con el disco virtual de Ubuntu. Vamos a procurar que la distribución y los datos de BRAHMA residan en F:.
+
+4. Comprobar la NVIDIA
+Ejecuta también:
+
+Get-PnpDevice -Class Display |
+Format-Table Status, FriendlyName, InstanceId -Auto
+
+Y:
+
+Get-CimInstance Win32_VideoController |
+Format-List Name, AdapterRAM, DriverVersion, PNPDeviceID
+
+Esto nos permitirá identificar el modelo real de la tarjeta, aunque Windows esté utilizando ahora el adaptador básico.
+
+No instales todavía CUDA ni controladores al azar.
+
+5. Siguiente paso
+Pásame los resultados de estos comandos:
+
+Estado de WSL
+
+
+Todavía no he ejecutado los comandos
+
+WSL está instalado
+
+WSL no está instalado
+
+WSL muestra un error
+Modelo de tarjeta gráfica (si aparece)
+
+Ej. NVIDIA GTX 750 Ti
+Ubicación preferida para BRAHMA
+
+
+F: — 539 GB libres
+
+D: — 251,8 GB libres
+Mi objetivo para esta primera fase: conseguir que BRAHMA arranque en Ubuntu sobre WSL2, tenga su propio núcleo de servicios, memoria persistente, API y conexión con Ollama. Después construiremos la interfaz y los ocho modos de inteligencia.
+
+No vamos a crear ocho asistentes independientes: construiremos un solo cerebro con ocho capacidades coordinadas.
+
+PS C:\Windows\system32> wsl -l -v
+
+Copyright (c) Microsoft Corporation. Todos los derechos reservados.
+
+ Uso: wsl.exe [Argument]
+
+Argumentos:
+
+    --install <Options>
+        Instala el Subsistema de Windows para las características de Linux. Si no se especifican opciones,
+        las características recomendadas se instalarán junto con la distribución predeterminada.
+
+      Para ver la distribución predeterminada, así como una lista de otras distribuciones válidas,
+use 'wsl --list --online'.
+
+        Opciones:
+           --distribución, -d [Argument]
+                 Especifica la distribución que se descargará e instalará por nombre.
+
+               Argumentos:
+                   un nombre de distribución válido (no distingue entre mayúsculas y minúsculas).
+
+                Ejemplos:
+                       wsl --install -d Ubuntu
+                   wsl --install --distribution Debian
+
+             --bandeja de entrada
+               Instale la función opcional de Windows en lugar de la versión disponible a través de Microsoft Store.
+
+            --
+               No instala una distribución (no se puede usar con --distribution).
+
+            --no-launch, -n
+                No iniciar la distribución después de la instalación.
+
+            --web-download
+                Descarga la versión más reciente de WSL de Internet en lugar de Microsoft Store.
+
+    --list; -l [Options]
+Muestra las distribuciones.
+
+         Opciones:
+            --online, -o
+           Muestra una lista de distribuciones disponibles para instalar con 'wsl --install'.
+
+    --status
+        Muestra el estado del subsistema de Windows para Linux.
+
+    --help
+        Muestra información de uso.
+PS C:\Windows\system32> wsl --status
+PS C:\Windows\system32> wsl --version
+
+Copyright (c) Microsoft Corporation. Todos los derechos reservados.
+
+ Uso: wsl.exe [Argument]
+
+Argumentos:
+
+    --install <Options>
+        Instala el Subsistema de Windows para las características de Linux. Si no se especifican opciones,
+        las características recomendadas se instalarán junto con la distribución predeterminada.
+
+      Para ver la distribución predeterminada, así como una lista de otras distribuciones válidas,
+use 'wsl --list --online'.
+
+        Opciones:
+           --distribución, -d [Argument]
+                 Especifica la distribución que se descargará e instalará por nombre.
+
+               Argumentos:
+                   un nombre de distribución válido (no distingue entre mayúsculas y minúsculas).
+
+                Ejemplos:
+                       wsl --install -d Ubuntu
+                   wsl --install --distribution Debian
+
+             --bandeja de entrada
+               Instale la función opcional de Windows en lugar de la versión disponible a través de Microsoft Store.
+
+            --
+               No instala una distribución (no se puede usar con --distribution).
+
+            --no-launch, -n
+                No iniciar la distribución después de la instalación.
+
+            --web-download
+                Descarga la versión más reciente de WSL de Internet en lugar de Microsoft Store.
+
+    --list; -l [Options]
+Muestra las distribuciones.
+
+         Opciones:
+            --online, -o
+           Muestra una lista de distribuciones disponibles para instalar con 'wsl --install'.
+
+    --status
+        Muestra el estado del subsistema de Windows para Linux.
+
+    --help
+        Muestra información de uso.
+PS C:\Windows\system32> wsl -l -v
+
+Copyright (c) Microsoft Corporation. Todos los derechos reservados.
+
+ Uso: wsl.exe [Argument]
+
+Argumentos:
+
+    --install <Options>
+        Instala el Subsistema de Windows para las características de Linux. Si no se especifican opciones,
+        las características recomendadas se instalarán junto con la distribución predeterminada.
+
+      Para ver la distribución predeterminada, así como una lista de otras distribuciones válidas,
+use 'wsl --list --online'.
+
+        Opciones:
+           --distribución, -d [Argument]
+                 Especifica la distribución que se descargará e instalará por nombre.
+
+               Argumentos:
+                   un nombre de distribución válido (no distingue entre mayúsculas y minúsculas).
+
+                Ejemplos:
+                       wsl --install -d Ubuntu
+                   wsl --install --distribution Debian
+
+             --bandeja de entrada
+               Instale la función opcional de Windows en lugar de la versión disponible a través de Microsoft Store.
+
+            --
+               No instala una distribución (no se puede usar con --distribution).
+
+            --no-launch, -n
+                No iniciar la distribución después de la instalación.
+
+            --web-download
+                Descarga la versión más reciente de WSL de Internet en lugar de Microsoft Store.
+
+    --list; -l [Options]
+Muestra las distribuciones.
+
+         Opciones:
+            --online, -o
+           Muestra una lista de distribuciones disponibles para instalar con 'wsl --install'.
+
+    --status
+        Muestra el estado del subsistema de Windows para Linux.
+
+    --help
+        Muestra información de uso.
+PS C:\Windows\system32>
+
+no se el modelo de la grafica y ya no se si es NVIDIA O AMD
+…
+Ya tenemos identificado el problema: tu Windows tiene una versión antigua del componente WSL, probablemente la versión integrada de Windows (inbox WSL), no la versión moderna actualizada.
+
+No significa que tu Windows 10 sea incompatible. Tu build 19045 permite utilizar WSL2. Lo que necesitamos es actualizar e instalar correctamente sus componentes.
+
+Y respecto a la gráfica, no vamos a adivinar si es NVIDIA o AMD: podemos identificarla mediante su identificador de hardware.
+
+1. Actualizar e instalar WSL2
+Abre PowerShell como administrador y ejecuta estos comandos, uno por uno.
+
+Paso 1. Activar los componentes necesarios:
+
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+
+Paso 2. Reinicia Windows.
+
+Paso 3. Después del reinicio, instala WSL moderno:
+
+wsl --install --web-download -d Ubuntu-24.04
+
+Si Windows solicita reiniciar, hazlo.
+
+Paso 4. Comprueba la instalación:
+
+wsl --update
+
+wsl --set-default-version 2
+
+wsl --list --verbose
+
+El resultado esperado será algo parecido a:
+
+  NAME            STATE           VERSION
+* Ubuntu-24.04    Running         2
+Si el comando wsl --update no se reconoce, no pasa nada: significa que todavía estamos utilizando el ejecutable antiguo y tendremos que completar la actualización por otra vía.
+
+2. Identificar la tarjeta gráfica
+Vamos a obtener el identificador PCI de la tarjeta. Abre PowerShell y ejecuta:
+
+Get-PnpDevice -Class Display |
+Format-List Status,FriendlyName,InstanceId
+
+Después:
+
+Get-CimInstance Win32_VideoController |
+Format-List Name,PNPDeviceID,DriverVersion
+
+Busca dentro del resultado un identificador parecido a estos:
+
+Identificador
+
+Fabricante
+
+VEN_10DE
+
+NVIDIA
+
+VEN_1002
+
+AMD
+
+VEN_8086
+
+Intel
+
+Aunque aparezca Microsoft Basic Display Adapter, el identificador PCI puede revelar el fabricante real.
+
+3. Configuración definitiva de BRAHMA
+Una vez instalado WSL2, utilizaremos inicialmente esta configuración:
+
+BRAHMA OS — WSL2 Genesis
+
+RAM asignada
+
+6 GB
+
+Procesadores
+
+4
+
+Swap
+
+4 GB
+
+Distribución
+
+Ubuntu 24.04 LTS
+
+Ubicación prevista
+
+F:
+
+GPU
+
+Pendiente de identificar
+
+Una decisión importante: mantendremos BRAHMA CORE, BRAHMA MEMORY y BRAHMA REKHA como componentes de una única arquitectura. WSL2 será nuestro entorno de desarrollo, no una segunda inteligencia independiente.
+
+Envíame los resultados de los dos comandos de identificación gráfica y de wsl --list --verbose cuando termines. Con eso podremos decidir si aprovechamos aceleración GPU o diseñamos BRAHMA para funcionar principalmente con CPU.
+
+
+
+
+

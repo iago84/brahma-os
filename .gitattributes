@@ -1,0 +1,10 @@
+# Normalización de fin de línea.
+# Los scripts se ejecutan en Linux (WSL/CI): forzar LF para no romper los shebang.
+* text=auto
+*.sh                              text eol=lf
+*.yml                             text eol=lf
+*.yaml                            text eol=lf
+brahma-os/iso/build.sh            text eol=lf
+brahma-os/iso/live-build/auto/*   text eol=lf
+brahma-os/iso/live-build/config/hooks/live/*  text eol=lf
+brahma-os/iso/debos/scripts/*     text eol=lf

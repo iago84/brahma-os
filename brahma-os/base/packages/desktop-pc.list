@@ -1,0 +1,15 @@
+# brahma-os/base/packages/desktop-pc.list — escritorio PC x86_64 (propuesta, VALIDAR)
+# Base PC: KDE Plasma MÍNIMO (sin el metapaquete completo de apps de Kubuntu),
+# para que la ISO quede manejable (~1,5–2 GB) y quepa en los límites de la CI.
+
+kde-plasma-desktop
+sddm
+pipewire
+pipewire-pulse
+wireplumber
+# Navegador local para el dashboard BRAHMA (web local)
+firefox
+
+# --- BRAHMA DESKTOP (UI) ---
+# Se integrará como paquete propio (brahma-desktop); ver interface/web y docs/DISTRO_PLAN.md
+# brahma-desktop

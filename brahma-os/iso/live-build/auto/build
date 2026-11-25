@@ -1,0 +1,7 @@
+#!/bin/sh
+# BRAHMA OS — paso de build de live-build (perfil PC x86_64).
+# Invocado por build.sh tras materializar config/package-lists/ desde base/packages/.
+set -e
+
+# `noauto` evita que `lb build` re-invoque este mismo script (recursión infinita).
+lb build noauto

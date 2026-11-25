@@ -1,0 +1,33 @@
+# brahma-os/base/packages/base.list — perfil base (propuesta, VALIDAR)
+# Una entrada por línea. Comentarios con '#'. Nombres Debian/Ubuntu (pueden variar entre ambos).
+
+# --- Sistema / init ---
+systemd
+systemd-timesyncd
+dbus
+udev
+kmod
+# polkit: "policykit-1" (Ubuntu) o "polkitd" (Debian) -> fijar por base elegida
+
+# --- Shell / utilidades ---
+bash
+coreutils
+util-linux
+sudo
+ca-certificates
+curl
+git
+less
+nano
+
+# --- Red ---
+network-manager
+nftables
+
+# --- Localización ---
+locales
+
+# --- Boot / initramfs (solo PC x86_64) ---
+# initramfs-tools
+# grub-pc-bin        # BIOS
+# grub-efi-amd64-bin # UEFI

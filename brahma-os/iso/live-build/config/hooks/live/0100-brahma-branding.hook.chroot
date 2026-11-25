@@ -1,0 +1,17 @@
+#!/bin/sh
+# BRAHMA OS — hook de chroot (live-build). Branding mínimo, sin tocar la IA.
+# La capa IA es REVERSIBLE: BRAHMA_AI_ENABLED=false por defecto (el sistema arranca sin BRAHMA).
+set -e
+
+install -d /etc/brahma
+
+cat > /etc/brahma/brahma-release <<'EOF'
+BRAHMA_OS=1
+BRAHMA_OS_PROFILE=pc-x86_64
+BRAHMA_AI_ENABLED=false
+EOF
+
+cat > /etc/motd <<'EOF'
+BRAHMA OS — distribución AI-native (capa IA desactivada por defecto).
+Sistema base funcional sin BRAHMA. Documentación: docs/DISTRO_PLAN.md
+EOF

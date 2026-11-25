@@ -1,0 +1,16 @@
+# brahma-os/base/packages/desktop-mobile.list — shell móvil (propuesta, VALIDAR)
+# Móvil: elegir UNA shell según la base (postmarketOS/UT). Nombres orientativos.
+
+# --- postmarketOS ---
+# plasma-mobile
+# phosh
+
+# --- Ubuntu Touch (Lomiri) ---
+# lomiri
+# lomiri-ui-toolkit
+
+# --- Comunes móvil ---
+# ofono            # telefonía
+# modemmanager
+# pipewire
+# wireplumber
