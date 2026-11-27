@@ -1,7 +1,7 @@
 # Integración del PARADIGMA AINA en BRAHMA OS — Estudio de integración
 
-> Fecha: 2026-11-26 (**rev. 2 — re-baseline**; 2026-11-27: A3 completa — gobernador — y A4 — aprobaciones +
-> parada de emergencia) · Autor: agente
+> Fecha: 2026-11-26 (**rev. 2 — re-baseline**; 2026-11-27: A3 completa — gobernador —, A4 — aprobaciones +
+> parada de emergencia — y A5 — task engine + eventos/outbox + scheduler/recovery) · Autor: agente
 > de sistemas (TRAE) · Alcance: `F:\TRABAJO\TO WORK ON QUICK\TRABAJO EXTRA\AINA` →
 > `F:\TRABAJO\TO WORK ON QUICK\TRABAJO EXTRA\BRAHMA`
 > **Nota de revisión:** la **rev. 1** de este documento apuntaba a la ruta antigua `F:\TRABAJO\NEW AI`.
@@ -445,7 +445,8 @@ Principios transversales a respetar (ya vigentes en BRAHMA, ahora reforzados por
   `require_approval` correcto; suite verde. **Estado: ✅ hecho** (2026-11-27) — evaluador puro (22 tests) +
   **gobernador de capacidades** `governor.py` (`CapabilityCatalog`, `CapabilityGovernor`,
   `AutonomyProfileDefinition.narrows()`, `ConstraintViolation` ×6; 22 tests) en WSL: **44 tests verdes**
-  (59 en la suite completa). **Pendiente menor:** binding real de permisos por modo/tool (llega con A4/A5).
+  (59 en la suite completa). **Pendiente menor resuelto en A5:** binding real de permisos por modo/tool
+  (`tasks/bindings.py`: `ModeToolBinder` + `GovernedPolicyEvaluator`, deny-by-default).
 - **A4 — Aprobaciones + parada de emergencia (L4).** Digest canónico, single-use, fail-closed.
   *Aceptación:* tests de auto-aprobación, caducidad, replay, stop que bloquea/cancela. **Estado: ✅ hecho**
   (2026-11-27) — `core/brahma_core/governance/{approvals,emergency_stop}.py` en WSL: digest SHA-256 canónico,
@@ -454,7 +455,19 @@ Principios transversales a respetar (ya vigentes en BRAHMA, ahora reforzados por
   cancelación cooperativa. **30 tests** (24 + 6). Suite completa: **89 verdes**.
 - **A5 — Task engine + eventos/outbox + scheduler/recovery (L3).** Tablas + Alembic + `dispatch_once`
   (+ scheduler/cuotas y recuperación fail-closed). *Aceptación:* at-least-once con idempotencia; estados
-  persistidos; auditoría. **Estado: ⬜ pendiente**.
+  persistidos; auditoría. **Estado: ✅ hecho** (2026-11-27) — paquete puro `core/brahma_core/tasks/`:
+  `types.py` (estados/leases/`RetryPolicy`), `store.py` (puerto `TaskStore` + `InMemoryTaskStore`),
+  `service.py` (`TaskService` + `StoreCancellationPort`), `events.py` (`EventEnvelope`/`EventRegistry`/
+  `EventBus` versionado), `outbox.py` (**at-least-once** con leases, backoff+jitter y dead-letter),
+  `dispatcher.py` (`dispatch_once`: **re-evalúa política justo antes de ejecutar** + aprobaciones),
+  `scheduler.py` (opt-in, cuotas/concurrencia/deadlines) y `recovery.py` (**fail-closed**: sólo handlers
+  idempotentes se reencolan). **Persistencia real** (`SqlTaskStore` + migración Alembic
+  `a5c4e1f2b3d4_tasks_0_1_task_engine`: `tasks`, `task_events`/outbox, `approvals`, `system_settings`,
+  `audit_records`) que **enchufa la A4**: aprobaciones y parada de emergencia persistidas. **Binding real
+  de permisos por modo/tool** (`bindings.py`: `ModeToolBinder` + `GovernedPolicyEvaluator`, delega en el
+  gobernador A3; un task_type sin binding ⇒ **deny por defecto**). Dominio puro: el paquete `tasks/` nunca
+  importa un driver (ADR-004). **56 tests** (39 dominio in-memory + 17 integración PostgreSQL); suite
+  completa: **145 verdes**.
 - **A6 — DESKTOP: consola + aprobaciones + stop (L5).** *Aceptación:* Playwright smoke local; sin
   acciones privilegiadas desde UI; re-autorización en servidor. **Estado: ⬜ pendiente**.
 - **A7 — RAG local + modo DEV (L2/L6).** Indexar docs/registros; composer/generators como herramienta
@@ -500,14 +513,15 @@ Estado real de los artefactos (a 2026-11-27):
 | `core/brahma_core/policy/` (evaluador puro + gobernador + tests) | L4 | ✅ creado en WSL (`taxonomy.py`, `manifest.py`, `evaluator.py`, `governor.py`, `__init__.py`, `tests/test_policy.py`, `tests/test_governor.py`; **44 tests verdes**); sin commit |
 | `core/brahma_core/policy/governor.py` (gobernador) | L4 | ✅ creado en WSL (fase A3, ampliación 2026-11-27; `CapabilityCatalog`, `CapabilityGovernor`, `ConstraintViolation` ×6, perfiles SUPERVISED/STANDARD/HIGH) |
 | `core/brahma_core/governance/{approvals,emergency_stop}.py` (+ tests) | L4 | ✅ creado en WSL (fase A4, 2026-11-27; digest canónico, single-use, no auto-aprobación, caducidad; stop fail-closed con cancelación cooperativa; **30 tests**) |
-| `core/brahma_core/tasks/` (task engine + outbox + scheduler + recovery) | L3 | ⬜ propuesto (fase A5) |
+| `core/brahma_core/tasks/` (task engine + outbox + scheduler + recovery) | L3 | ✅ creado en WSL (fase A5, 2026-11-27; `types.py`, `store.py`, `service.py`, `events.py`, `outbox.py`, `dispatcher.py`, `scheduler.py`, `recovery.py`, `bindings.py` + `sql_models.py`/`sql_store.py` + migración `a5c4e1f2b3d4_tasks_0_1_task_engine`; **56 tests**) |
 | `docs/decisions/0009-adopcion-paradigma-aina.md` (ADR de BRAHMA) | — | ⬜ propuesto |
 | `brahma-os/base/hwprofile/` (detección HW) | L0 | ⬜ propuesto (fase A2) |
 | `interface/web` pantallas aprobaciones/stop | L5 | ⬜ propuesto (fase A6) |
 
 **Registro:** este estudio se anota en `F:\TRABAJO\REGISTRO_SESIONES_Y_TAREAS.md` (§3/§5) como turno
-2026-11-26 (rev. 2: re-baseline). El cierre de A3 (gobernador de capacidades) y de A4 (aprobaciones +
-parada de emergencia) se registran en el turno 2026-11-27.
+2026-11-26 (rev. 2: re-baseline). El cierre de A3 (gobernador de capacidades), de A4 (aprobaciones +
+parada de emergencia) y de A5 (task engine + eventos/outbox + scheduler/recovery, con tablas + Alembic +
+`SqlTaskStore` + binding por modo/tool) se registran en el turno 2026-11-27.
 
 ---
 
